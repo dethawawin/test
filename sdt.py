@@ -7,7 +7,7 @@ import xlsxwriter
 import plotly.express as px
  
 # Default Page Config
-st.set_page_config(page_title="SDT Schedule", layout="wide")
+st.set_page_config(page_title="TEST SDT Schedule", layout="wide")
 
 # Initialize session state
 if "schedule_table" not in st.session_state:
@@ -33,7 +33,7 @@ def get_shift_range(shift):
  
 # Function to display the header
 def display_header():
-    st.title("PT XYZ Side Dump Truck Departure Scheduling")
+    st.title("TESTTT PT XYZ Side Dump Truck Departure Scheduling")
     st.markdown("---")  # Adds a horizontal line for better separation
  
 # Clear all inputs and results
@@ -116,23 +116,43 @@ def generate_schedule_table(truck_ids, capacities, hauling_target, max_trips_per
 def generate_gantt_chart(schedule_table, updated_stages, warna_aktivitas, shift, selected_date):
     shift_start, shift_end = get_shift_range(shift)
 
-    # Tambahkan tanggal ke waktu shift_start dan shift_end
+    # Gabungkan shift_start dan shift_end dengan tanggal terpilih
     shift_start = datetime.combine(selected_date, shift_start.time())
     shift_end = datetime.combine(selected_date, shift_end.time())
+
+    # Jika shift_end secara waktu lebih kecil dari shift_start, berarti shift melewati tengah malam
+    if shift_end < shift_start:
+        shift_end += timedelta(days=1)
+
     gantt_data = []
 
     # Konversi data tabel jadwal menjadi format yang cocok untuk Plotly
     for _, row in schedule_table.iterrows():
-        start_time = datetime.combine(selected_date, datetime.strptime(row["Departure Time"], "%H:%M:%S").time())
+        departure_str = row["Departure Time"]
+        departure_time_obj = datetime.strptime(departure_str, "%H:%M:%S").time()
+        start_time = datetime.combine(selected_date, departure_time_obj)
+
+        # Jika Shift B dan start_time < shift_start, berarti waktunya sudah masuk hari berikutnya
+        if "B" in shift and start_time < shift_start:
+            start_time += timedelta(days=1)
+
         truck_name = row["Truck Name"]
+
+        # Iterasi setiap stage dan durasinya
         for stage, duration in updated_stages.items():
             end_time = start_time + timedelta(minutes=duration)
+
+            # Cek lagi jika end_time juga perlu disesuaikan dengan hari berikutnya
+            if "B" in shift and end_time < shift_start:
+                end_time += timedelta(days=1)
+
             gantt_data.append({
                 "Stage": stage,
                 "Start": start_time,
                 "End": end_time,
                 "Truck": truck_name
             })
+
             start_time = end_time
 
     gantt_df = pd.DataFrame(gantt_data)
@@ -149,23 +169,24 @@ def generate_gantt_chart(schedule_table, updated_stages, warna_aktivitas, shift,
         color_discrete_map=warna_aktivitas
     )
 
-    # Urutkan TruckID secara descending
+    # Urutkan TruckID secara descending agar lebih rapi
     truck_order = sorted(gantt_df["Truck"].unique(), reverse=True)
     fig.update_yaxes(categoryorder="array", categoryarray=truck_order)
 
-    # Mengatur format waktu pada sumbu X dan menampilkan tanggal
+    # Atur range sumbu X sesuai shift
     fig.update_xaxes(
         range=[shift_start, shift_end],
         tickformat="%H:%M"
     )
 
-    # Tambahkan layout agar grafik terlihat rapi
+    # Layout tambahan
     fig.update_layout(
         yaxis_title="Truck Name",
         height=700,
         legend_title="Stages",
         margin=dict(l=10, r=10, t=50, b=50)
     )
+
     return fig
  
 # Sidebar menu
