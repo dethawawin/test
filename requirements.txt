@@ -2,3 +2,4 @@ streamlit
 streamlit-option-menu
 xlsxwriter
 plotly.express
+openpyxl
