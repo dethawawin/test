@@ -5,9 +5,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 import xlsxwriter
 import plotly.express as px
-
-st.title("TESTTTT")
-
+ 
 # Default Page Config
 st.set_page_config(page_title="SDT Schedule", layout="wide")
 
@@ -169,5 +167,141 @@ def generate_gantt_chart(schedule_table, updated_stages, warna_aktivitas, shift,
         margin=dict(l=10, r=10, t=50, b=50)
     )
     return fig
-
  
+# Sidebar menu
+with st.sidebar:
+    selected_page = option_menu(
+        menu_title="Menu",
+        options=["Homepage", "Create a New Schedule"],
+        icons=["house-door-fill", "calendar-plus-fill"],
+        menu_icon='list',
+        default_index=0
+    )
+ 
+if selected_page == "Homepage":
+    display_header()
+    st.subheader('About Application')
+    st.markdown('The Side Dump Truck departure scheduling system application is designed to efficiently organize and monitor truck departure schedules for coal hauling activities.')
+    st.subheader('User Guidance')
+    st.markdown("""
+    #### Steps to Use the Application:
+    1. Navigate to the application and click on the Create Schedule menu.
+    2. Enter the required date and shift for the new schedule in the provided fields.
+    3. Upload the Ready for Use (RFU) Side Dump Truck data file in .xlsx format with the necessary columns: truckID and capacity.
+    4. Input the planned hauling tonnage target into the designated field.
+    5. The system validates the tonnage target against available truck capacity.
+    6. Generate and view the departure schedule.
+    """)
+ 
+if selected_page == "Create a New Schedule":
+    st.title("Create a New Schedule")
+    st.write("Fill in the details below to create a new schedule for the Side Dump Truck.")
+    date = st.date_input("Select Operation Date:")
+    shift = st.radio("Select Shift:", ["A (07:00:00 - 18:59:59)", "B (19:00:00 - 06:59:59)"])
+
+    uploaded_file = st.file_uploader(
+        "Upload RFU File:", type=["xlsx"], key="uploaded_file" if not st.session_state["reset"] else "reset_uploaded_file"
+    )
+    st.markdown("<i style='font-size: 0.9rem;'>Ensure the file is in Excel format (.xlsx) and includes 'truckID' and 'capacity' columns</i>", unsafe_allow_html=True)
+
+    if uploaded_file:
+        try:
+            data = pd.read_excel(uploaded_file)
+            required_columns = {"truckID", "capacity"}
+            if not required_columns.issubset(data.columns):
+                st.error(f"Error: Missing required columns {required_columns - set(data.columns)} in the uploaded file.")
+                st.session_state.is_valid = False
+            else:
+                st.write("Uploaded RFU Data Preview:")
+                st.dataframe(data.head(5))
+                capacities = data['capacity']
+                truck_ids = data['truckID'].tolist()
+                max_trips_per_truck = 2
+                max_capacity = sum(capacities * max_trips_per_truck)
+
+                hauling_target = st.number_input(
+                    f"Input Hauling Tonnage Target (maximum {max_capacity:.2f} tons):",
+                    min_value=0,
+                    max_value=max_capacity,
+                    key="tonnage_target"
+                )
+
+                if hauling_target > max_capacity:
+                    st.error(f"Error: Hauling target exceeds maximum capacity of {max_capacity:.2f} tons.")
+                    st.session_state.is_valid = False
+                elif hauling_target <= 0:
+                    st.error("Error: Hauling target must be greater than 0.")
+                    st.session_state.is_valid = False
+                else:
+                    st.session_state.is_valid = True
+
+                if st.button("Generate Schedule", type="primary") and st.session_state.is_valid:
+                    updated_stages = {
+                        "Travelling to Stockpile": 68.5,
+                        "Loading": 9.2,
+                        "Hauling": 141.4,
+                        "Gross-Scaling": 3.08,
+                        "Dumping": 5.07,
+                        "Tare-Scaling": 1.82,
+                        "Travelling to Workshop": 42.5,
+                        "Break": 30
+                    }
+                    warna_aktivitas = {
+                        "Travelling to Stockpile": "gold",
+                        "Loading": "steelblue",
+                        "Hauling": "forestgreen",
+                        "Gross-Scaling": "blueviolet",
+                        "Dumping": "red",
+                        "Tare-Scaling": "orange",
+                        "Travelling to Workshop": "coral",
+                        "Break": "gray"
+                    }
+
+                    # Generate schedule table
+                    max_trips_per_truck = 2
+                    schedule_table = generate_schedule_table(
+                        truck_ids=truck_ids,
+                        capacities=capacities,
+                        hauling_target=hauling_target,
+                        max_trips_per_truck=max_trips_per_truck,
+                        updated_stages=updated_stages,
+                        shift=shift
+                    )
+                    schedule_table.index = range(1, len(schedule_table) + 1)
+
+                    # Store results in session state
+                    st.session_state.schedule_table = schedule_table
+                    st.session_state.updated_stages = updated_stages
+                    st.session_state.warna_aktivitas = warna_aktivitas
+
+                    st.markdown("---")
+                    st.subheader("PT XYZ - Coal Hauling SDT Departure Schedule")
+                    #st.dataframe(schedule_table)
+                    st.dataframe(schedule_table, use_container_width=True)
+
+                    # Generate and display Gantt chart using Plotly
+                    st.subheader("Interactive Gantt Chart")
+                    gantt_chart_figure = generate_gantt_chart(
+                        schedule_table=schedule_table,
+                        updated_stages=updated_stages,
+                        warna_aktivitas=warna_aktivitas,
+                        shift=shift,
+                        selected_date=date
+                    )
+                    st.plotly_chart(gantt_chart_figure, use_container_width=True)
+
+                    
+
+        except Exception as e:
+            st.error(f"Error reading the uploaded file. Please check the file format. Details: {str(e)}")
+
+        if st.session_state.is_valid and st.session_state.schedule_figure is not None:
+            st.pyplot(st.session_state.schedule_figure)
+           
+
+    # Clear all button
+    if st.session_state.schedule_table is not None:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col1:  # Center the button
+            if st.button("Clear Schedule"):
+                clear_all()
