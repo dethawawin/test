@@ -6,7 +6,7 @@ from io import BytesIO
 import xlsxwriter
 import plotly.express as px
 
-st.writer("TESTTTT")
+st.title("TESTTTT")
 
 # Default Page Config
 st.set_page_config(page_title="SDT Schedule", layout="wide")
