@@ -206,11 +206,11 @@ if selected_page == "Homepage":
     st.subheader('User Guidance')
     st.markdown("""
     #### Steps to Use the Application:
-    1. Navigate to the application and click on the Create Schedule menu.
+    1. Navigate to the application and click the "Create a New Schedule" menu.
     2. Enter the required date and shift for the new schedule in the provided fields.
     3. Upload the Ready for Use (RFU) Side Dump Truck data file in .xlsx format with the necessary columns: truckID and capacity.
-    4. Input the planned hauling tonnage target into the designated field.
-    5. The system validates the tonnage target against available truck capacity.
+    4. Based on the number of SDT RFUs, the system will calculate the hauling capacity. Next, input the planned hauling tonnage target, which must not exceed the hauling capacity that will be notified to the system.
+    5. Then, the system validates the tonnage target.
     6. Generate and view the departure schedule.
     """)
  
