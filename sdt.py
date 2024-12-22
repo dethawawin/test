@@ -7,7 +7,7 @@ import xlsxwriter
 import plotly.express as px
  
 # Default Page Config
-st.set_page_config(page_title="TEST SDT Schedule", layout="wide")
+st.set_page_config(page_title="SDT Schedule", layout="wide")
 
 # Initialize session state
 if "schedule_table" not in st.session_state:
@@ -33,7 +33,7 @@ def get_shift_range(shift):
  
 # Function to display the header
 def display_header():
-    st.title("TESTTT PT XYZ Side Dump Truck Departure Scheduling")
+    st.title("PT XYZ Side Dump Truck Departure Scheduling")
     st.markdown("---")  # Adds a horizontal line for better separation
  
 # Clear all inputs and results
